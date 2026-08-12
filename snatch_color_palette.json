@@ -1,0 +1,170 @@
+{
+  "brand": {
+    "name": "Snatch",
+    "description": "App color palette derived from the Snatch logo",
+    "colors": {
+      "primary": {
+        "name": "Electric Lime",
+        "hex": "#C8FF00",
+        "rgb": [
+          200,
+          255,
+          0
+        ],
+        "role": "Primary brand color, CTAs, active states, highlights"
+      },
+      "background": {
+        "name": "Deep Navy",
+        "hex": "#050A1C",
+        "rgb": [
+          5,
+          10,
+          28
+        ],
+        "role": "Primary dark background and navigation surfaces"
+      },
+      "surface": {
+        "name": "Navy Surface",
+        "hex": "#0B1228",
+        "rgb": [
+          11,
+          18,
+          40
+        ],
+        "role": "Cards, sheets, dialogs, elevated surfaces"
+      },
+      "surfaceElevated": {
+        "name": "Elevated Navy",
+        "hex": "#121B35",
+        "rgb": [
+          18,
+          27,
+          53
+        ],
+        "role": "Elevated cards, inputs, menus and secondary surfaces"
+      },
+      "textPrimary": {
+        "name": "Soft White",
+        "hex": "#F5F5F5",
+        "rgb": [
+          245,
+          245,
+          245
+        ],
+        "role": "Primary text and high-emphasis content"
+      },
+      "textSecondary": {
+        "name": "Cool Gray",
+        "hex": "#AAB2C5",
+        "rgb": [
+          170,
+          178,
+          197
+        ],
+        "role": "Secondary text, metadata and descriptions"
+      },
+      "textMuted": {
+        "name": "Muted Navy Gray",
+        "hex": "#68718A",
+        "rgb": [
+          104,
+          113,
+          138
+        ],
+        "role": "Placeholder text and low-emphasis content"
+      },
+      "border": {
+        "name": "Subtle Border",
+        "hex": "#202A46",
+        "rgb": [
+          32,
+          42,
+          70
+        ],
+        "role": "Dividers, outlines and component borders"
+      },
+      "primaryPressed": {
+        "name": "Pressed Lime",
+        "hex": "#A8D600",
+        "rgb": [
+          168,
+          214,
+          0
+        ],
+        "role": "Pressed/active primary controls"
+      },
+      "primarySoft": {
+        "name": "Soft Lime",
+        "hex": "#E7FFA3",
+        "rgb": [
+          231,
+          255,
+          163
+        ],
+        "role": "Light-mode accents, badges and subtle highlights"
+      },
+      "success": {
+        "name": "Success",
+        "hex": "#7EEA4A",
+        "rgb": [
+          126,
+          234,
+          74
+        ],
+        "role": "Successful saves, completed downloads and confirmations"
+      },
+      "warning": {
+        "name": "Warning",
+        "hex": "#FFB84D",
+        "rgb": [
+          255,
+          184,
+          77
+        ],
+        "role": "Warnings and recoverable issues"
+      },
+      "error": {
+        "name": "Error",
+        "hex": "#FF5C6C",
+        "rgb": [
+          255,
+          92,
+          108
+        ],
+        "role": "Errors and failed actions"
+      },
+      "info": {
+        "name": "Info Cyan",
+        "hex": "#5DD6FF",
+        "rgb": [
+          93,
+          214,
+          255
+        ],
+        "role": "Informational states and links"
+      }
+    }
+  },
+  "lightTheme": {
+    "background": "#F7F8F2",
+    "surface": "#FFFFFF",
+    "surfaceElevated": "#FFFFFF",
+    "textPrimary": "#111522",
+    "textSecondary": "#5E6678",
+    "textMuted": "#8A91A1",
+    "border": "#DDE2D2",
+    "primary": "#A8D600",
+    "primaryText": "#111522"
+  },
+  "darkTheme": {
+    "background": "#050A1C",
+    "surface": "#0B1228",
+    "surfaceElevated": "#121B35",
+    "textPrimary": "#F5F5F5",
+    "textSecondary": "#AAB2C5",
+    "textMuted": "#68718A",
+    "border": "#202A46",
+    "primary": "#C8FF00",
+    "primaryText": "#050A1C"
+  }
+}
