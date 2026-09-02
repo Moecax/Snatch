@@ -21,6 +21,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 private class FakeFileSink : FileSink {
@@ -36,6 +37,18 @@ private class FakeFileSink : FileSink {
         bytes.collect { chunk -> size += chunk.size }
         lastWrittenSize = size
         return "fake://$fileName"
+    }
+}
+
+private class ThrowingFileSink(private val error: Throwable) : FileSink {
+    override suspend fun write(
+        fileName: String,
+        mimeType: String,
+        mediaType: MediaType,
+        bytes: Flow<ByteArray>,
+    ): String {
+        bytes.collect { throw error }
+        return "unreachable"
     }
 }
 
@@ -90,5 +103,61 @@ class KtorMediaDownloaderTest {
 
         assertIs<DownloadProgress.Error>(events.last())
         assertEquals(AppError.NoNetwork, (events.last() as DownloadProgress.Error).cause)
+    }
+
+    @Test
+    fun notFoundResponseProducesErrorAndNeverWrites() = runTest {
+        val mockEngine = MockEngine {
+            respond(
+                content = ByteReadChannel("Not Found".encodeToByteArray()),
+                status = HttpStatusCode.NotFound,
+            )
+        }
+        val fileSink = FakeFileSink()
+        val downloader = KtorMediaDownloader(HttpClient(mockEngine), fileSink)
+
+        val events = downloader.download(sampleRequest()).toList()
+
+        assertIs<DownloadProgress.Error>(events.last())
+        assertEquals(AppError.MediaUnavailable, (events.last() as DownloadProgress.Error).cause)
+        assertNull(fileSink.lastWrittenSize)
+    }
+
+    @Test
+    fun rateLimitedResponseProducesRateLimitedError() = runTest {
+        val mockEngine = MockEngine {
+            respond(
+                content = ByteReadChannel(ByteArray(0)),
+                status = HttpStatusCode.TooManyRequests,
+            )
+        }
+        val fileSink = FakeFileSink()
+        val downloader = KtorMediaDownloader(HttpClient(mockEngine), fileSink)
+
+        val events = downloader.download(sampleRequest()).toList()
+
+        assertIs<DownloadProgress.Error>(events.last())
+        assertEquals(AppError.RateLimited, (events.last() as DownloadProgress.Error).cause)
+        assertNull(fileSink.lastWrittenSize)
+    }
+
+    @Test
+    fun genuineSinkFailureIsClassifiedAsStorageError() = runTest {
+        val mockEngine = MockEngine {
+            respond(
+                content = ByteReadChannel(ByteArray(10) { it.toByte() }),
+                status = HttpStatusCode.OK,
+                headers = headersOf("Content-Length" to listOf("10")),
+            )
+        }
+        val fileSink = ThrowingFileSink(RuntimeException("disk full"))
+        val downloader = KtorMediaDownloader(HttpClient(mockEngine), fileSink)
+
+        val events = downloader.download(sampleRequest()).toList()
+
+        val last = events.last()
+        assertIs<DownloadProgress.Error>(last)
+        assertIs<AppError.StorageError>(last.cause)
+        assertEquals(false, last.cause.retryable)
     }
 }

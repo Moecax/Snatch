@@ -19,8 +19,14 @@ class DesktopFileSink : FileSink {
     ): String = withContext(Dispatchers.IO) {
         val downloadsDir = File(System.getProperty("user.home"), "Downloads").apply { mkdirs() }
         val file = File(downloadsDir, fileName)
-        FileOutputStream(file).use { out ->
-            bytes.collect { chunk -> out.write(chunk) }
+        try {
+            FileOutputStream(file).use { out ->
+                bytes.collect { chunk -> out.write(chunk) }
+            }
+        } catch (e: Exception) {
+            // Don't leave a truncated file behind for a failed/cancelled download.
+            file.delete()
+            throw e
         }
         file.absolutePath
     }

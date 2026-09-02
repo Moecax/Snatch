@@ -10,7 +10,12 @@ import io.ktor.client.HttpClient
 class AppContainer(fileSink: FileSink) {
 
     private val resolverRegistry = ResolverRegistry(listOf(FakeResolver()))
-    private val mediaDownloader = KtorMediaDownloader(HttpClient(), fileSink)
+
+    // Lazy: constructing an AppContainer must stay cheap and side-effect-free, since a fresh
+    // one is built on every recomposition root recreation (e.g. Android config change) even
+    // though the ViewModelStore usually discards it in favor of a retained ViewModel — an
+    // eager HttpClient here would leak one real client per discarded container.
+    private val mediaDownloader by lazy { KtorMediaDownloader(HttpClient(), fileSink) }
 
     fun createDownloadViewModel(): DownloadViewModel = DownloadViewModel(resolverRegistry, mediaDownloader)
 }
