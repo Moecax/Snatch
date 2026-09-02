@@ -45,6 +45,7 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
+            implementation(libs.ktor.clientOkhttp)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -56,13 +57,22 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.kotlinx.coroutinesCore)
+            implementation(libs.ktor.clientCore)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutinesTest)
+            implementation(libs.ktor.clientMock)
         }
         jsMain.dependencies {
             implementation(libs.wrappers.browser)
+        }
+        jvmMain.dependencies {
+            implementation(libs.ktor.clientCio)
+        }
+        webMain.dependencies {
+            implementation(libs.ktor.clientJs)
+            implementation(libs.kotlinx.browser)
         }
     }
 }

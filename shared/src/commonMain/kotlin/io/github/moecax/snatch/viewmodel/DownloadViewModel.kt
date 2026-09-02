@@ -2,19 +2,23 @@ package io.github.moecax.snatch.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.moecax.snatch.domain.DownloadProgress
+import io.github.moecax.snatch.domain.MediaDownloader
 import io.github.moecax.snatch.domain.ResolverRegistry
 import io.github.moecax.snatch.domain.appErrorOrNull
 import io.github.moecax.snatch.domain.model.AppError
+import io.github.moecax.snatch.domain.model.DownloadRequest
 import io.github.moecax.snatch.domain.model.MediaVariant
 import io.github.moecax.snatch.domain.model.ResolvedMedia
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 class DownloadViewModel(
     private val resolverRegistry: ResolverRegistry,
+    private val mediaDownloader: MediaDownloader,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<DownloadUiState>(DownloadUiState.Idle)
@@ -58,27 +62,31 @@ class DownloadViewModel(
         val current = _state.value
         if (current !is DownloadUiState.Ready) return
         val variant = current.media.variants.firstOrNull { it.id == current.selectedVariantId } ?: return
-        viewModelScope.launch {
-            simulateDownload(current.media, variant)
-        }
-    }
-
-    private suspend fun simulateDownload(media: ResolvedMedia, variant: MediaVariant) {
-        val totalBytes = variant.approxSizeBytes ?: 10_000_000L
-        val steps = 5
-        for (step in 1..steps) {
-            delay(200)
-            _state.value = DownloadUiState.Downloading(
-                media = media,
-                variant = variant,
-                bytesDownloaded = totalBytes * step / steps,
-                totalBytes = totalBytes,
-            )
-        }
-        _state.value = DownloadUiState.Complete(
-            fileName = suggestedFileName(media, variant),
-            location = "Downloads",
+        val request = DownloadRequest(
+            variant = variant,
+            resolved = current.media,
+            suggestedFileName = suggestedFileName(current.media, variant),
         )
+        viewModelScope.launch {
+            mediaDownloader.download(request).collect { progress ->
+                _state.value = when (progress) {
+                    is DownloadProgress.InProgress -> DownloadUiState.Downloading(
+                        media = current.media,
+                        variant = variant,
+                        bytesDownloaded = progress.bytes,
+                        totalBytes = progress.total,
+                    )
+                    is DownloadProgress.Done -> DownloadUiState.Complete(
+                        fileName = request.suggestedFileName,
+                        location = progress.fileUri,
+                    )
+                    is DownloadProgress.Error -> DownloadUiState.Failed(
+                        error = progress.cause,
+                        retryable = progress.cause.retryable,
+                    )
+                }
+            }
+        }
     }
 
     private fun suggestedFileName(media: ResolvedMedia, variant: MediaVariant): String {
