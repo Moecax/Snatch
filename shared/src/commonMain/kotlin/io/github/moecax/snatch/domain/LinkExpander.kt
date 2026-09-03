@@ -1,5 +1,5 @@
 package io.github.moecax.snatch.domain
 
-interface LinkExpander {
+fun interface LinkExpander {
     suspend fun expand(url: String): String
 }
