@@ -4,6 +4,12 @@ import io.github.moecax.snatch.domain.model.SocialPlatform
 
 object PlatformDetector {
 
+    private val shortenerHosts = setOf(
+        "t.co", "bit.ly", "tinyurl.com",
+        "vm.tiktok.com", "vt.tiktok.com",
+        "fb.watch", "redd.it", "instagr.am",
+    )
+
     private val knownHosts: Map<String, SocialPlatform> = mapOf(
         "youtube.com" to SocialPlatform.YOUTUBE,
         "youtu.be" to SocialPlatform.YOUTUBE,
@@ -27,6 +33,11 @@ object PlatformDetector {
     fun detect(url: String): SocialPlatform {
         val host = hostOf(url) ?: return SocialPlatform.UNKNOWN
         return knownHosts[normalize(host)] ?: SocialPlatform.UNKNOWN
+    }
+
+    fun isShortLink(url: String): Boolean {
+        val host = hostOf(url) ?: return false
+        return normalize(host) in shortenerHosts
     }
 
     private fun hostOf(url: String): String? {
