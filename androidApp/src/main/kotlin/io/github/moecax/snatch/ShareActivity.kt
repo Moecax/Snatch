@@ -11,13 +11,10 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import io.github.moecax.snatch.data.AndroidFileSink
-import io.github.moecax.snatch.di.AppContainer
 import io.github.moecax.snatch.domain.UrlExtractor
 import io.github.moecax.snatch.ui.sheet.ShareSheetContent
 import io.github.moecax.snatch.viewmodel.DownloadEvent
@@ -33,7 +30,7 @@ class ShareActivity : ComponentActivity() {
         sharedText = extractSharedText(intent)
 
         setContent {
-            val container = remember { AppContainer(AndroidFileSink(applicationContext)) }
+            val container = (application as SnatchApplication).container
             MaterialTheme {
                 val viewModel: DownloadViewModel = viewModel { container.createDownloadViewModel() }
                 val state by viewModel.state.collectAsStateWithLifecycle()
@@ -48,11 +45,14 @@ class ShareActivity : ComponentActivity() {
                     }
                 }
 
+                // Dismiss-and-handoff: once the download is queued the notification takes over.
+                val onEvent = rememberDownloadGate(viewModel::onEvent, onDownloadStarted = ::finish)
+
                 ModalBottomSheet(
                     onDismissRequest = ::finish,
                     sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
                 ) {
-                    ShareSheetContent(state = state, onEvent = viewModel::onEvent, onDismiss = ::finish)
+                    ShareSheetContent(state = state, onEvent = onEvent, onDismiss = ::finish)
                 }
             }
         }

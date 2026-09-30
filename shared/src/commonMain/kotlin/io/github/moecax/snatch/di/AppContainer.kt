@@ -3,10 +3,14 @@ package io.github.moecax.snatch.di
 import io.github.moecax.snatch.data.CobaltResolver
 import io.github.moecax.snatch.data.KtorLinkExpander
 import io.github.moecax.snatch.data.KtorMediaDownloader
+import io.github.moecax.snatch.domain.DownloadManager
 import io.github.moecax.snatch.domain.FileSink
 import io.github.moecax.snatch.domain.ResolverRegistry
 import io.github.moecax.snatch.viewmodel.DownloadViewModel
 import io.ktor.client.HttpClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 class AppContainer(
     fileSink: FileSink,
@@ -18,6 +22,7 @@ class AppContainer(
     // override it locally to test real downloads, and don't commit a real endpoint/key here.
     private val cobaltBaseUrl: String = "https://cobalt.example.invalid",
     private val cobaltApiKey: String? = null,
+    private val onDownloadStarted: () -> Unit = {},
 ) {
 
     // Lazy: constructing an AppContainer must stay cheap and side-effect-free, since a fresh
@@ -30,7 +35,13 @@ class AppContainer(
     private val resolverRegistry by lazy {
         ResolverRegistry(listOf(CobaltResolver(httpClient, cobaltBaseUrl, cobaltApiKey)), linkExpander)
     }
-    private val mediaDownloader by lazy { KtorMediaDownloader(httpClient, fileSink) }
+    val downloadManager by lazy {
+        DownloadManager(
+            downloader = KtorMediaDownloader(httpClient, fileSink),
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+            onDownloadStarted = onDownloadStarted,
+        )
+    }
 
-    fun createDownloadViewModel(): DownloadViewModel = DownloadViewModel(resolverRegistry, mediaDownloader)
+    fun createDownloadViewModel(): DownloadViewModel = DownloadViewModel(resolverRegistry, downloadManager)
 }

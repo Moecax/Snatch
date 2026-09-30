@@ -17,7 +17,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            App(container = remember { AppContainer(AndroidFileSink(applicationContext)) })
+            App(
+                container = (application as SnatchApplication).container,
+                interceptEvents = { onEvent -> rememberDownloadGate(onEvent) },
+            )
         }
     }
 }
