@@ -54,4 +54,57 @@ class ResolverRegistryTest {
 
         assertEquals(AppError.UnsupportedPlatform(SocialPlatform.YOUTUBE), result.appErrorOrNull())
     }
+
+    @Test
+    fun expandsShortLinksBeforeDispatching() = runTest {
+        var receivedUrl: String? = null
+        val resolver = object : MediaResolver {
+            override fun supports(platform: SocialPlatform, url: String) = platform == SocialPlatform.YOUTUBE
+            override suspend fun resolve(url: String): Result<ResolvedMedia> {
+                receivedUrl = url
+                return Result.success(sampleMedia)
+            }
+        }
+        val registry = ResolverRegistry(
+            resolvers = listOf(resolver),
+            linkExpander = LinkExpander { "https://www.youtube.com/watch?v=abc" },
+        )
+
+        registry.resolve("https://t.co/shortlink")
+
+        assertEquals("https://www.youtube.com/watch?v=abc", receivedUrl)
+    }
+
+    @Test
+    fun fallsBackToOriginalUrlWhenExpansionFails() = runTest {
+        var receivedUrl: String? = null
+        val resolver = object : MediaResolver {
+            override fun supports(platform: SocialPlatform, url: String) = true
+            override suspend fun resolve(url: String): Result<ResolvedMedia> {
+                receivedUrl = url
+                return Result.success(sampleMedia)
+            }
+        }
+        val registry = ResolverRegistry(
+            resolvers = listOf(resolver),
+            linkExpander = LinkExpander { throw RuntimeException("expansion failed") },
+        )
+
+        registry.resolve("https://t.co/shortlink")
+
+        assertEquals("https://t.co/shortlink", receivedUrl)
+    }
+
+    @Test
+    fun doesNotExpandNonShortLinks() = runTest {
+        var expandCalls = 0
+        val registry = ResolverRegistry(
+            resolvers = listOf(StubResolver(SocialPlatform.YOUTUBE, Result.success(sampleMedia))),
+            linkExpander = LinkExpander { url -> expandCalls++; url },
+        )
+
+        registry.resolve("https://www.youtube.com/watch?v=abc")
+
+        assertEquals(0, expandCalls)
+    }
 }

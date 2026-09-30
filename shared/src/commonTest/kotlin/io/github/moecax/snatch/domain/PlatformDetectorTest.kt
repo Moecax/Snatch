@@ -3,6 +3,8 @@ package io.github.moecax.snatch.domain
 import io.github.moecax.snatch.domain.model.SocialPlatform
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class PlatformDetectorTest {
 
@@ -33,5 +35,29 @@ class PlatformDetectorTest {
         cases.forEach { case ->
             assertEquals(case.expected, PlatformDetector.detect(case.url), case.description)
         }
+    }
+
+    @Test
+    fun isShortLinkFlagsKnownShortenerHosts() {
+        val shortLinks = listOf(
+            "https://t.co/abcXYZ123",
+            "https://bit.ly/abc123",
+            "https://tinyurl.com/abc123",
+            "https://vm.tiktok.com/ZMabcdefg/",
+            "https://vt.tiktok.com/ZMabcdefg/",
+            "https://fb.watch/abcXYZ123/",
+            "https://redd.it/abc123",
+            "https://instagr.am/p/Cabcdefghij/",
+        )
+        shortLinks.forEach { assertTrue(PlatformDetector.isShortLink(it), it) }
+
+        val notShortLinks = listOf(
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "https://youtu.be/dQw4w9WgXcQ",
+            "https://www.tiktok.com/@someuser/video/1234567890123456789",
+            "https://example.com/some/page",
+            "not a url at all",
+        )
+        notShortLinks.forEach { assertFalse(PlatformDetector.isShortLink(it), it) }
     }
 }
