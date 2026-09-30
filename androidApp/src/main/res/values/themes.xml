@@ -1,0 +1,12 @@
+<resources>
+    <style name="Theme.Transparent" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <!-- ModalBottomSheet draws its own scrim; window dim on top would double-darken the origin app. -->
+        <item name="android:backgroundDimEnabled">false</item>
+        <!-- No open/close animation so the sheet reads as an overlay, not an app switch. -->
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+</resources>
