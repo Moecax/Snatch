@@ -87,6 +87,7 @@ class KtorMediaDownloader(
 }
 
 private fun errorFor(status: HttpStatusCode): AppError = when (status.value) {
+    401, 403 -> AppError.ResolutionFailed("The download link expired or was rejected (HTTP ${status.value}) — retry to fetch a fresh one.")
     429 -> AppError.RateLimited
     404, 410 -> AppError.MediaUnavailable
     else -> AppError.NoNetwork

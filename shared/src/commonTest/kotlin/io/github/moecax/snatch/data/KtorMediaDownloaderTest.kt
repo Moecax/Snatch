@@ -142,6 +142,23 @@ class KtorMediaDownloaderTest {
     }
 
     @Test
+    fun forbiddenResponseProducesRetryableResolutionFailedError() = runTest {
+        val mockEngine = MockEngine {
+            respond(content = ByteReadChannel(ByteArray(0)), status = HttpStatusCode.Forbidden)
+        }
+        val fileSink = FakeFileSink()
+        val downloader = KtorMediaDownloader(HttpClient(mockEngine), fileSink)
+
+        val events = downloader.download(sampleRequest()).toList()
+
+        val last = events.last()
+        assertIs<DownloadProgress.Error>(last)
+        assertIs<AppError.ResolutionFailed>(last.cause)
+        assertEquals(true, last.cause.retryable)
+        assertNull(fileSink.lastWrittenSize)
+    }
+
+    @Test
     fun genuineSinkFailureIsClassifiedAsStorageError() = runTest {
         val mockEngine = MockEngine {
             respond(
