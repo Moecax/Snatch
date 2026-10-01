@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Intent
 import androidx.core.content.ContextCompat
 import io.github.moecax.snatch.data.AndroidFileSink
+import io.github.moecax.snatch.data.AndroidSettingsStore
 import io.github.moecax.snatch.di.AppContainer
 
 class SnatchApplication : Application() {
@@ -12,6 +13,7 @@ class SnatchApplication : Application() {
     val container: AppContainer by lazy {
         AppContainer(
             fileSink = AndroidFileSink(this),
+            settingsStore = AndroidSettingsStore(this),
             onDownloadStarted = ::startDownloadService,
         )
     }

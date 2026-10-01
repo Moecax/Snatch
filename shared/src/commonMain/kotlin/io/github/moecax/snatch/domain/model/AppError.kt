@@ -23,6 +23,11 @@ sealed interface AppError {
         override val retryable: Boolean = false
     }
 
+    /** No resolver endpoint has been set in Settings yet. */
+    data object ResolverNotConfigured : AppError {
+        override val retryable: Boolean = false
+    }
+
     data object RateLimited : AppError {
         override val retryable: Boolean = true
     }

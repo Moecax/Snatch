@@ -8,6 +8,7 @@ fun AppError.toDisplayMessage(): String = when (this) {
     AppError.NoNetwork -> "No internet connection."
     is AppError.ResolutionFailed -> "Couldn't resolve this link."
     AppError.MediaUnavailable -> "This media is unavailable."
+    AppError.ResolverNotConfigured -> "No Cobalt server set. Add one in Snatch's Settings."
     AppError.RateLimited -> "Too many requests — try again shortly."
     is AppError.StorageError -> "Couldn't save the file."
     is AppError.Unknown -> "Something went wrong."

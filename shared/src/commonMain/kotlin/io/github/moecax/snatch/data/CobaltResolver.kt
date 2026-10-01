@@ -23,17 +23,24 @@ import kotlinx.serialization.json.Json
 
 private val cobaltJson = Json { ignoreUnknownKeys = true }
 
+data class CobaltEndpoint(val baseUrl: String, val apiKey: String?)
+
 /**
  * Resolves media via a Cobalt-style third-party API (https://github.com/imputnet/cobalt).
- * [baseUrl] must point at a self-hosted instance or a public instance from
+ * The endpoint must be a self-hosted instance or a public instance from
  * https://instances.cobalt.best that allows unauthenticated/CORS use — api.cobalt.tools
  * itself requires bot-protection and isn't meant for third-party callers (see its docs/api.md).
+ *
+ * [endpoint] is read on every resolve so a change in Settings applies without rebuilding the
+ * resolver; null means nothing is configured yet.
  */
 class CobaltResolver(
     private val httpClient: HttpClient,
-    private val baseUrl: String,
-    private val apiKey: String? = null,
+    private val endpoint: () -> CobaltEndpoint?,
 ) : MediaResolver {
+
+    constructor(httpClient: HttpClient, baseUrl: String, apiKey: String? = null) :
+        this(httpClient, { CobaltEndpoint(baseUrl, apiKey) })
 
     override fun supports(platform: SocialPlatform, url: String): Boolean = platform != SocialPlatform.UNKNOWN
 
@@ -42,6 +49,8 @@ class CobaltResolver(
         if (platform == SocialPlatform.UNKNOWN) {
             return Result.failure(AppErrorException(AppError.UnsupportedPlatform(platform)))
         }
+        val (baseUrl, apiKey) = endpoint()
+            ?: return Result.failure(AppErrorException(AppError.ResolverNotConfigured))
         return try {
             val response = httpClient.post(baseUrl) {
                 contentType(ContentType.Application.Json)

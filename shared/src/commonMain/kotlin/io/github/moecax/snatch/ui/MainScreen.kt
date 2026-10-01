@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,23 +29,34 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import io.github.moecax.snatch.domain.model.AppError
 import io.github.moecax.snatch.domain.model.MediaVariant
 import io.github.moecax.snatch.domain.model.ResolvedMedia
 import io.github.moecax.snatch.viewmodel.DownloadEvent
 import io.github.moecax.snatch.viewmodel.DownloadUiState
 
 @Composable
-fun MainScreen(state: DownloadUiState, onEvent: (DownloadEvent) -> Unit) {
+fun MainScreen(
+    state: DownloadUiState,
+    onEvent: (DownloadEvent) -> Unit,
+    resolverConfigured: Boolean = true,
+    onOpenSettings: () -> Unit = {},
+) {
     Column(modifier = Modifier.fillMaxSize().safeContentPadding().padding(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Snatch", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            TextButton(onClick = onOpenSettings) { Text("Settings") }
+        }
+        Spacer(Modifier.height(8.dp))
         UrlInput(state = state, onEvent = onEvent)
         Spacer(Modifier.height(16.dp))
         when (state) {
-            DownloadUiState.Idle -> Unit
+            DownloadUiState.Idle -> if (!resolverConfigured) SetupHint(onOpenSettings)
             is DownloadUiState.Resolving -> ResolvingIndicator()
             is DownloadUiState.Ready -> ReadyContent(state, onEvent)
             is DownloadUiState.Downloading -> DownloadingContent(state)
             is DownloadUiState.Complete -> CompleteContent(state, onEvent)
-            is DownloadUiState.Failed -> FailedContent(state, onEvent)
+            is DownloadUiState.Failed -> FailedContent(state, onEvent, onOpenSettings)
         }
         Spacer(Modifier.weight(1f))
         LegalNotice()
@@ -163,10 +175,22 @@ private fun CompleteContent(state: DownloadUiState.Complete, onEvent: (DownloadE
 }
 
 @Composable
-private fun FailedContent(state: DownloadUiState.Failed, onEvent: (DownloadEvent) -> Unit) {
+private fun SetupHint(onOpenSettings: () -> Unit) {
+    Column {
+        Text("Set a Cobalt server before downloading.")
+        Spacer(Modifier.height(8.dp))
+        Button(onClick = onOpenSettings) { Text("Open settings") }
+    }
+}
+
+@Composable
+private fun FailedContent(state: DownloadUiState.Failed, onEvent: (DownloadEvent) -> Unit, onOpenSettings: () -> Unit) {
     Column {
         Text(state.error.toDisplayMessage(), color = MaterialTheme.colorScheme.error)
-        if (state.retryable) {
+        if (state.error == AppError.ResolverNotConfigured) {
+            Spacer(Modifier.height(8.dp))
+            Button(onClick = onOpenSettings) { Text("Open settings") }
+        } else if (state.retryable) {
             Spacer(Modifier.height(8.dp))
             Button(onClick = { onEvent(DownloadEvent.Retry) }) {
                 Text("Retry")
