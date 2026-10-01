@@ -56,6 +56,7 @@ object PlatformDetector {
         var normalized = host
         if (normalized.startsWith("www.")) normalized = normalized.removePrefix("www.")
         if (normalized.startsWith("m.")) normalized = normalized.removePrefix("m.")
+        if (normalized.startsWith("mobile.")) normalized = normalized.removePrefix("mobile.")
         return normalized
     }
 }

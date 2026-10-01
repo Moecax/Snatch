@@ -26,6 +26,21 @@ class PlatformDetectorTest {
         Case("redd.it short link", "https://redd.it/abc123", SocialPlatform.REDDIT),
         Case("m. mobile host", "https://m.youtube.com/watch?v=dQw4w9WgXcQ", SocialPlatform.YOUTUBE),
         Case("tracking params", "https://www.youtube.com/watch?v=dQw4w9WgXcQ&si=abc123&feature=share", SocialPlatform.YOUTUBE),
+        Case("youtube music host", "https://music.youtube.com/watch?v=dQw4w9WgXcQ", SocialPlatform.YOUTUBE),
+        Case("m. instagram host", "https://m.instagram.com/p/Cabcdefghij/", SocialPlatform.INSTAGRAM),
+        Case("m. facebook host", "https://m.facebook.com/someuser/videos/1234567890123456789", SocialPlatform.FACEBOOK),
+        Case("fb.com host", "https://fb.com/someuser/videos/1234567890123456789", SocialPlatform.FACEBOOK),
+        Case("mobile.twitter.com host", "https://mobile.twitter.com/someuser/status/1234567890123456789", SocialPlatform.TWITTER_X),
+        Case("m. tiktok host", "https://m.tiktok.com/v/1234567890123456789", SocialPlatform.TIKTOK),
+        Case("old.reddit.com host", "https://old.reddit.com/r/videos/comments/abc123/some_title/", SocialPlatform.REDDIT),
+        Case("vt.tiktok.com short link", "https://vt.tiktok.com/ZMabcdefg/", SocialPlatform.TIKTOK),
+        Case("uppercase host", "https://WWW.YouTube.COM/watch?v=dQw4w9WgXcQ", SocialPlatform.YOUTUBE),
+        Case("explicit port", "https://www.youtube.com:443/watch?v=dQw4w9WgXcQ", SocialPlatform.YOUTUBE),
+        Case("x.com with utm params", "https://x.com/someuser/status/1234567890123456789?s=20&utm_source=share", SocialPlatform.TWITTER_X),
+        Case("shortener with tracking params", "https://vm.tiktok.com/ZMabcdefg/?_r=1&utm_campaign=share", SocialPlatform.TIKTOK),
+        Case("lookalike suffix host", "https://notyoutube.com/watch?v=dQw4w9WgXcQ", SocialPlatform.UNKNOWN),
+        Case("known host as subdomain of another site", "https://youtube.com.example.com/watch", SocialPlatform.UNKNOWN),
+        Case("known host only in the path", "https://example.com/youtube.com/watch", SocialPlatform.UNKNOWN),
         Case("unrelated host", "https://example.com/some/page", SocialPlatform.UNKNOWN),
         Case("not a url", "not a url at all", SocialPlatform.UNKNOWN),
     )
@@ -35,6 +50,13 @@ class PlatformDetectorTest {
         cases.forEach { case ->
             assertEquals(case.expected, PlatformDetector.detect(case.url), case.description)
         }
+    }
+
+    @Test
+    fun everyPlatformExceptUnknownIsCoveredByAtLeastOneCase() {
+        val covered = cases.map { it.expected }.toSet()
+        SocialPlatform.entries.filter { it != SocialPlatform.UNKNOWN }
+            .forEach { assertTrue(it in covered, "no test case detects $it") }
     }
 
     @Test
