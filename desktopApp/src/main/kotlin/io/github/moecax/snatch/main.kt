@@ -44,7 +44,7 @@ fun main() = application {
             },
         )
 
-        App(container = remember { AppContainer(DesktopFileSink(settings)) })
+        App(container = remember { AppContainer(DesktopFileSink(settings), settingsStore = settings) })
     }
 }
 

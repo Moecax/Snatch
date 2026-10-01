@@ -14,6 +14,7 @@ class AppErrorMessagesTest {
         AppError.NoNetwork,
         AppError.ResolutionFailed("boom"),
         AppError.MediaUnavailable,
+        AppError.ResolverNotConfigured,
         AppError.RateLimited,
         AppError.StorageError("disk full"),
         AppError.Unknown(null),

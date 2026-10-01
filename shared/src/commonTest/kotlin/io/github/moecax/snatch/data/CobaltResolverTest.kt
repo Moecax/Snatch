@@ -137,4 +137,36 @@ class CobaltResolverTest {
 
         assertEquals("Api-Key secret-key", capturedAuth)
     }
+
+    @Test
+    fun missingEndpointFailsWithResolverNotConfiguredWithoutCallingTheNetwork() = runTest {
+        var requests = 0
+        val mockEngine = MockEngine {
+            requests++
+            respond(content = ByteReadChannel("{}"), status = HttpStatusCode.OK)
+        }
+        val resolver = CobaltResolver(HttpClient(mockEngine)) { null }
+
+        val result = resolver.resolve("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+
+        assertEquals(AppError.ResolverNotConfigured, result.appErrorOrNull())
+        assertEquals(0, requests)
+    }
+
+    @Test
+    fun endpointIsReadOnEveryResolve() = runTest {
+        val hosts = mutableListOf<String>()
+        val mockEngine = MockEngine { request ->
+            hosts += request.url.host
+            respond(content = ByteReadChannel("""{"status":"tunnel","url":"https://cdn.example.com/a.mp4","filename":"a.mp4"}"""), status = HttpStatusCode.OK)
+        }
+        var baseUrl = "https://first.mock.test"
+        val resolver = CobaltResolver(HttpClient(mockEngine)) { CobaltEndpoint(baseUrl, null) }
+
+        resolver.resolve("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+        baseUrl = "https://second.mock.test"
+        resolver.resolve("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+
+        assertEquals(listOf("first.mock.test", "second.mock.test"), hosts)
+    }
 }
