@@ -22,7 +22,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "Snatch"
-            packageVersion = "1.0.0"
+            packageVersion = "0.1.0"
             description = "Social media downloader"
 
             // The jlink-trimmed runtime only contains modules the Compose plugin can infer; Ktor's CIO
