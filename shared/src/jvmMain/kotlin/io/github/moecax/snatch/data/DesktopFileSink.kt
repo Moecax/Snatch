@@ -9,7 +9,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 
-class DesktopFileSink : FileSink {
+class DesktopFileSink(private val settings: DesktopSettings = DesktopSettings()) : FileSink {
 
     override suspend fun write(
         fileName: String,
@@ -17,7 +17,7 @@ class DesktopFileSink : FileSink {
         mediaType: MediaType,
         bytes: Flow<ByteArray>,
     ): String = withContext(Dispatchers.IO) {
-        val downloadsDir = File(System.getProperty("user.home"), "Downloads").apply { mkdirs() }
+        val downloadsDir = settings.downloadDirectory.apply { mkdirs() }
         val file = File(downloadsDir, fileName)
         try {
             FileOutputStream(file).use { out ->

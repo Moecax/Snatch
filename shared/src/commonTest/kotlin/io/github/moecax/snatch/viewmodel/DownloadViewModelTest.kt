@@ -3,11 +3,14 @@
 package io.github.moecax.snatch.viewmodel
 
 import io.github.moecax.snatch.data.FakeResolver
+import io.github.moecax.snatch.domain.AppErrorException
 import io.github.moecax.snatch.domain.DownloadProgress
 import io.github.moecax.snatch.domain.MediaDownloader
+import io.github.moecax.snatch.domain.MediaResolver
 import io.github.moecax.snatch.domain.ResolverRegistry
 import io.github.moecax.snatch.domain.model.AppError
 import io.github.moecax.snatch.domain.model.DownloadRequest
+import io.github.moecax.snatch.domain.model.ResolvedMedia
 import io.github.moecax.snatch.domain.model.SocialPlatform
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -96,6 +99,92 @@ class DownloadViewModelTest {
         assertIs<DownloadUiState.Failed>(failed)
         assertEquals(AppError.NoNetwork, failed.error)
         assertEquals(true, failed.retryable)
+
+        Dispatchers.resetMain()
+    }
+
+    // Fails the first resolve() with a retryable error, then succeeds — models a transient outage.
+    private class FlakyResolver(private val delegate: FakeResolver = FakeResolver()) : MediaResolver {
+        var failuresLeft = 1
+        override fun supports(platform: SocialPlatform, url: String) = delegate.supports(platform, url)
+        override suspend fun resolve(url: String): Result<ResolvedMedia> =
+            if (failuresLeft-- > 0) Result.failure(AppErrorException(AppError.NoNetwork)) else delegate.resolve(url)
+    }
+
+    @Test
+    fun retryableResolveFailureRecoversOnRetry() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+
+        val viewModel = DownloadViewModel(ResolverRegistry(listOf(FlakyResolver())), FakeMediaDownloader(emptyList()))
+        viewModel.onEvent(DownloadEvent.UrlSubmitted("https://www.youtube.com/watch?v=dQw4w9WgXcQ"))
+        advanceUntilIdle()
+
+        val failed = viewModel.state.value
+        assertIs<DownloadUiState.Failed>(failed)
+        assertEquals(AppError.NoNetwork, failed.error)
+        assertEquals(true, failed.retryable)
+
+        viewModel.onEvent(DownloadEvent.Retry)
+        assertIs<DownloadUiState.Resolving>(viewModel.state.value)
+        advanceUntilIdle()
+
+        assertIs<DownloadUiState.Ready>(viewModel.state.value)
+
+        Dispatchers.resetMain()
+    }
+
+    @Test
+    fun retryAfterDownloadFailureReResolvesTheSameUrl() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+
+        val mediaDownloader = FakeMediaDownloader(listOf(DownloadProgress.Error(AppError.NoNetwork)))
+        val viewModel = DownloadViewModel(ResolverRegistry(listOf(FakeResolver())), mediaDownloader)
+        viewModel.onEvent(DownloadEvent.UrlSubmitted("https://www.youtube.com/watch?v=dQw4w9WgXcQ"))
+        advanceUntilIdle()
+        viewModel.onEvent(DownloadEvent.DownloadClicked)
+        advanceUntilIdle()
+        assertIs<DownloadUiState.Failed>(viewModel.state.value)
+
+        viewModel.onEvent(DownloadEvent.Retry)
+        advanceUntilIdle()
+
+        assertIs<DownloadUiState.Ready>(viewModel.state.value)
+
+        Dispatchers.resetMain()
+    }
+
+    @Test
+    fun storageFailureMidDownloadIsNotRetryable() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+
+        val mediaDownloader = FakeMediaDownloader(
+            listOf(
+                DownloadProgress.InProgress(10, 100),
+                DownloadProgress.Error(AppError.StorageError("disk full")),
+            ),
+        )
+        val viewModel = DownloadViewModel(ResolverRegistry(listOf(FakeResolver())), mediaDownloader)
+        viewModel.onEvent(DownloadEvent.UrlSubmitted("https://www.youtube.com/watch?v=dQw4w9WgXcQ"))
+        advanceUntilIdle()
+        viewModel.onEvent(DownloadEvent.DownloadClicked)
+        advanceUntilIdle()
+
+        val failed = viewModel.state.value
+        assertIs<DownloadUiState.Failed>(failed)
+        assertEquals(false, failed.retryable)
+
+        Dispatchers.resetMain()
+    }
+
+    @Test
+    fun retryWithoutAPriorSubmissionDoesNothing() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+
+        val viewModel = DownloadViewModel(ResolverRegistry(listOf(FakeResolver())), FakeMediaDownloader(emptyList()))
+        viewModel.onEvent(DownloadEvent.Retry)
+        advanceUntilIdle()
+
+        assertIs<DownloadUiState.Idle>(viewModel.state.value)
 
         Dispatchers.resetMain()
     }
