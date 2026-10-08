@@ -1,7 +1,5 @@
 package io.github.moecax.snatch.ui
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -117,11 +115,7 @@ private fun ReadyContent(state: DownloadUiState.Ready, onEvent: (DownloadEvent) 
 @Composable
 private fun MediaCard(media: ResolvedMedia) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            modifier = Modifier
-                .size(64.dp)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-        )
+        MediaThumbnail(url = media.thumbnailUrl, size = 64.dp)
         Spacer(Modifier.width(12.dp))
         Column {
             Text(media.title ?: "Untitled", style = MaterialTheme.typography.titleMedium)
