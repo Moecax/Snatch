@@ -19,3 +19,6 @@ captures
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
 .superpowers/
+.tmp-rel/
+hs_err_pid*.log
+replay_pid*.log
