@@ -14,10 +14,11 @@ import androidx.core.content.ContextCompat
 import io.github.moecax.snatch.viewmodel.DownloadEvent
 
 /**
- * Wraps an event handler so [DownloadEvent.DownloadClicked] first asks for the notification
- * permission (Android 13+) right when a download is about to start. Denial doesn't block the
- * download — it just runs without a visible notification. [onDownloadStarted] fires after the
- * event has been forwarded.
+ * Wraps an event handler so [DownloadEvent.DownloadClicked] first asks for the permission a
+ * download needs, right when it's about to start: notifications on Android 13+, storage on
+ * Android 9 and below. Denial doesn't block the event — without notifications the download runs
+ * silently, and without storage it fails with a save error instead of doing nothing.
+ * [onDownloadStarted] fires after the event has been forwarded.
  */
 @Composable
 fun rememberDownloadGate(
@@ -35,12 +36,12 @@ fun rememberDownloadGate(
 
     return remember(context, launcher) {
         { event ->
-            val needsPermission = event == DownloadEvent.DownloadClicked &&
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
-                PackageManager.PERMISSION_GRANTED
+            val missingPermission = downloadPermission()?.takeIf {
+                event == DownloadEvent.DownloadClicked &&
+                    ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
+            }
             when {
-                needsPermission -> launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                missingPermission != null -> launcher.launch(missingPermission)
                 event == DownloadEvent.DownloadClicked -> {
                     currentOnEvent(event)
                     currentOnDownloadStarted()
@@ -49,4 +50,10 @@ fun rememberDownloadGate(
             }
         }
     }
+}
+
+private fun downloadPermission(): String? = when {
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> Manifest.permission.POST_NOTIFICATIONS
+    Build.VERSION.SDK_INT <= Build.VERSION_CODES.P -> Manifest.permission.WRITE_EXTERNAL_STORAGE
+    else -> null
 }
