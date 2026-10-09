@@ -5,7 +5,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.LaunchedEffect
@@ -17,6 +16,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.moecax.snatch.domain.UrlExtractor
 import io.github.moecax.snatch.ui.sheet.ShareSheetContent
+import io.github.moecax.snatch.ui.theme.SnatchTheme
 import io.github.moecax.snatch.viewmodel.DownloadEvent
 import io.github.moecax.snatch.viewmodel.DownloadViewModel
 
@@ -31,7 +31,7 @@ class ShareActivity : ComponentActivity() {
 
         setContent {
             val container = (application as SnatchApplication).container
-            MaterialTheme {
+            SnatchTheme {
                 val viewModel: DownloadViewModel = viewModel { container.createDownloadViewModel() }
                 val state by viewModel.state.collectAsStateWithLifecycle()
 

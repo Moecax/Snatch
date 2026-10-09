@@ -32,6 +32,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.dp
 import io.github.moecax.snatch.domain.model.ResolvedMedia
 import io.github.moecax.snatch.ui.LegalNotice
+import io.github.moecax.snatch.ui.MediaThumbnail
 import io.github.moecax.snatch.ui.toDisplayMessage
 import io.github.moecax.snatch.viewmodel.DownloadEvent
 import io.github.moecax.snatch.viewmodel.DownloadUiState
@@ -76,23 +77,13 @@ private fun ReadySheet(state: DownloadUiState.Ready, onEvent: (DownloadEvent) ->
 @Composable
 private fun MediaHeader(media: ResolvedMedia) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Thumbnail()
+        MediaThumbnail(url = media.thumbnailUrl, size = 72.dp)
         Spacer(Modifier.width(12.dp))
         Column {
             Text(media.title ?: "Untitled", style = MaterialTheme.typography.titleMedium, maxLines = 2)
             media.author?.let { Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 1) }
         }
     }
-}
-
-// No image-loading library yet (same gap as MainScreen's MediaCard), so this stays a placeholder.
-@Composable
-private fun Thumbnail() {
-    Spacer(
-        Modifier
-            .size(72.dp)
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)),
-    )
 }
 
 @Composable

@@ -1,5 +1,10 @@
 <resources>
-    <style name="Theme.Transparent" parent="@android:style/Theme.Material.Light.NoActionBar">
+    <!-- Matches SnatchTheme's background so there's no white flash before Compose draws. -->
+    <style name="Theme.Snatch" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/snatch_background</item>
+    </style>
+
+    <style name="Theme.Transparent" parent="@android:style/Theme.Material.NoActionBar">
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowNoTitle">true</item>

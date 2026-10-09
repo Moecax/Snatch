@@ -4,7 +4,6 @@ import io.github.moecax.snatch.domain.FileSink
 import io.github.moecax.snatch.domain.model.MediaType
 import kotlinx.browser.document
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.toList
 import kotlin.js.JsAny
 import kotlin.js.toJsArray
 import org.khronos.webgl.toInt8Array
@@ -22,15 +21,11 @@ class WebFileSink : FileSink {
         mediaType: MediaType,
         bytes: Flow<ByteArray>,
     ): String {
-        val chunks = bytes.toList()
-        val combined = ByteArray(chunks.sumOf { it.size })
-        var offset = 0
-        for (chunk in chunks) {
-            chunk.copyInto(combined, offset)
-            offset += chunk.size
-        }
-        val parts = listOf<JsAny?>(combined.toInt8Array()).toJsArray()
-        val blob = Blob(parts, BlobPropertyBag(type = mimeType))
+        // Blob concatenates its parts itself, so each chunk is handed over as it arrives rather than
+        // first being copied into one combined ByteArray — that copy doubled peak memory.
+        val parts = mutableListOf<JsAny?>()
+        bytes.collect { chunk -> parts += chunk.toInt8Array() }
+        val blob = Blob(parts.toJsArray(), BlobPropertyBag(type = mimeType))
         val objectUrl = URL.createObjectURL(blob)
         val anchor = document.createElement("a") as HTMLAnchorElement
         anchor.href = objectUrl

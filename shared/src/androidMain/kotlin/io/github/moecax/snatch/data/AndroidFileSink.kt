@@ -1,13 +1,16 @@
 package io.github.moecax.snatch.data
 
+import android.Manifest
 import android.content.ContentValues
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import androidx.annotation.RequiresApi
 import io.github.moecax.snatch.domain.FileSink
 import io.github.moecax.snatch.domain.model.MediaType
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
@@ -21,12 +24,62 @@ class AndroidFileSink(private val context: Context) : FileSink {
         mediaType: MediaType,
         bytes: Flow<ByteArray>,
     ): String = withContext(Dispatchers.IO) {
-        check(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            "Saving downloads requires Android 10 (API 29) or higher."
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            writeViaMediaStore(fileName, mimeType, mediaType, bytes)
+        } else {
+            writeToPublicDirectory(fileName, mimeType, mediaType, bytes)
         }
-        // Extracted so @RequiresApi gives Lint's NewApi check something to see — the runtime
-        // `check()` above is invisible to static analysis.
-        writeViaMediaStore(fileName, mimeType, mediaType, bytes)
+    }
+
+    /**
+     * Pre-Q MediaStore has no RELATIVE_PATH/IS_PENDING, so the file is written to an explicit public
+     * path and then registered through the DATA column. Registering it (rather than returning a
+     * file:// URI) yields a content:// URI that the "open file" notification can hand to other apps
+     * without a FileUriExposedException.
+     */
+    @Suppress("DEPRECATION")
+    private suspend fun writeToPublicDirectory(
+        fileName: String,
+        mimeType: String,
+        mediaType: MediaType,
+        bytes: Flow<ByteArray>,
+    ): String {
+        check(context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+            "Storage permission was denied."
+        }
+        val (collection, publicDir) = when (mediaType) {
+            MediaType.Video -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI to Environment.DIRECTORY_MOVIES
+            MediaType.Image -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI to Environment.DIRECTORY_PICTURES
+            MediaType.Audio -> MediaStore.Audio.Media.EXTERNAL_CONTENT_URI to Environment.DIRECTORY_MUSIC
+            MediaType.Gallery -> MediaStore.Files.getContentUri("external") to Environment.DIRECTORY_DOWNLOADS
+        }
+        val dir = File(Environment.getExternalStoragePublicDirectory(publicDir), "Snatch")
+        check(dir.isDirectory || dir.mkdirs()) { "Could not create $dir" }
+        // MediaStore's DATA column is unique, so an existing file can't simply be overwritten.
+        val file = uniqueFile(dir, fileName)
+        try {
+            file.outputStream().use { out -> bytes.collect { chunk -> out.write(chunk) } }
+            val values = ContentValues().apply {
+                put(MediaStore.MediaColumns.DATA, file.absolutePath)
+                put(MediaStore.MediaColumns.DISPLAY_NAME, file.name)
+                put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+                put(MediaStore.MediaColumns.SIZE, file.length())
+            }
+            val uri = context.contentResolver.insert(collection, values)
+                ?: error("Could not register ${file.name} with MediaStore")
+            return uri.toString()
+        } catch (e: Exception) {
+            file.delete()
+            throw e
+        }
+    }
+
+    private fun uniqueFile(dir: File, fileName: String): File {
+        val stem = fileName.substringBeforeLast('.')
+        val extension = fileName.substringAfterLast('.', missingDelimiterValue = "").let { if (it.isEmpty()) "" else ".$it" }
+        return generateSequence(0) { it + 1 }
+            .map { n -> File(dir, if (n == 0) fileName else "$stem ($n)$extension") }
+            .first { !it.exists() }
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)

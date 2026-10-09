@@ -60,6 +60,8 @@ kotlin {
             implementation(libs.kotlinx.coroutinesCore)
             implementation(libs.kotlinx.serializationJson)
             implementation(libs.ktor.clientCore)
+            implementation(libs.coil.compose)
+            implementation(libs.coil.networkKtor)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
