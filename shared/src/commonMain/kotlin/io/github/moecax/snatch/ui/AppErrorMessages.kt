@@ -5,7 +5,8 @@ import io.github.moecax.snatch.domain.model.AppError
 fun AppError.toDisplayMessage(): String = when (this) {
     is AppError.UnsupportedPlatform -> "This platform isn't supported yet."
     AppError.InvalidUrl -> "That doesn't look like a valid link."
-    AppError.NoNetwork -> "No internet connection."
+    AppError.NoNetwork -> "The connection dropped. Check your internet and try again."
+    AppError.ServerUnreachable -> "Couldn't reach your Cobalt server. Check your connection and the server address in Settings."
     is AppError.ResolutionFailed -> "Couldn't resolve this link."
     AppError.MediaUnavailable -> "This media is unavailable."
     AppError.ResolverNotConfigured -> "No Cobalt server set. Add one in Snatch's Settings."

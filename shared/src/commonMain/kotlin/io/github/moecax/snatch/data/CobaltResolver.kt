@@ -68,7 +68,7 @@ class CobaltResolver(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Result.failure(AppErrorException(AppError.NoNetwork))
+            Result.failure(AppErrorException(AppError.ServerUnreachable))
         }
     }
 }
@@ -139,8 +139,9 @@ private fun toResult(url: String, platform: SocialPlatform, dto: CobaltResponseD
 
 private fun mapHttpStatus(status: HttpStatusCode): AppError = when (status.value) {
     429 -> AppError.RateLimited
-    in 500..599 -> AppError.ResolutionFailed("Resolver instance returned ${status.value}")
-    else -> AppError.NoNetwork
+    // A non-JSON reply means something answered, so the network is fine — usually the address
+    // points at a web page or proxy rather than a Cobalt API.
+    else -> AppError.ResolutionFailed("Resolver instance returned ${status.value}")
 }
 
 // Cobalt doesn't publish an exhaustive error-code enum (see this plan's Global Constraints) —

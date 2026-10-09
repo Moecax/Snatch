@@ -12,6 +12,7 @@ class AppErrorMessagesTest {
         AppError.UnsupportedPlatform(SocialPlatform.UNKNOWN),
         AppError.InvalidUrl,
         AppError.NoNetwork,
+        AppError.ServerUnreachable,
         AppError.ResolutionFailed("boom"),
         AppError.MediaUnavailable,
         AppError.ResolverNotConfigured,

@@ -110,6 +110,27 @@ class CobaltResolverTest {
     }
 
     @Test
+    fun nonJsonClientErrorIsAResolutionFailureNotANetworkFailure() = runTest {
+        val resolver = CobaltResolver(
+            HttpClient(engineReturning("<html>Not Found</html>", HttpStatusCode.NotFound)),
+            "https://cobalt.mock.test",
+        )
+
+        val result = resolver.resolve("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+
+        assertIs<AppError.ResolutionFailed>(result.appErrorOrNull())
+    }
+
+    @Test
+    fun connectionFailureMapsToServerUnreachable() = runTest {
+        val resolver = CobaltResolver(HttpClient(MockEngine { throw RuntimeException("unknown host") }), "https://cobalt.mock.test")
+
+        val result = resolver.resolve("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+
+        assertEquals(AppError.ServerUnreachable, result.appErrorOrNull())
+    }
+
+    @Test
     fun unknownPlatformShortCircuitsWithoutANetworkCall() = runTest {
         var callCount = 0
         val mockEngine = MockEngine {

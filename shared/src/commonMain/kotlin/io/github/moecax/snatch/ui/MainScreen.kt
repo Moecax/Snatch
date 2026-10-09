@@ -186,8 +186,14 @@ private fun FailedContent(state: DownloadUiState.Failed, onEvent: (DownloadEvent
             Button(onClick = onOpenSettings) { Text("Open settings") }
         } else if (state.retryable) {
             Spacer(Modifier.height(8.dp))
-            Button(onClick = { onEvent(DownloadEvent.Retry) }) {
-                Text("Retry")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Button(onClick = { onEvent(DownloadEvent.Retry) }) {
+                    Text("Retry")
+                }
+                if (state.error == AppError.ServerUnreachable) {
+                    Spacer(Modifier.width(8.dp))
+                    TextButton(onClick = onOpenSettings) { Text("Open settings") }
+                }
             }
         }
     }
