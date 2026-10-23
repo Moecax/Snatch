@@ -7,12 +7,17 @@ import io.github.moecax.snatch.domain.model.SocialPlatform
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.engine.mock.toByteArray
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
 import io.ktor.utils.io.ByteReadChannel
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 
 class CobaltResolverTest {
 
@@ -162,7 +167,9 @@ class CobaltResolverTest {
     fun apiKeyIsSentAsAuthorizationHeaderWhenProvided() = runTest {
         var capturedAuth: String? = null
         val mockEngine = MockEngine { request ->
-            capturedAuth = request.headers["Authorization"]
+            // The resolver also fires a HEAD at the resolved media URL to size it afterwards —
+            // that request must not carry the Cobalt API key, so only the POST is captured here.
+            if (request.method == HttpMethod.Post) capturedAuth = request.headers["Authorization"]
             respond(content = ByteReadChannel("""{"status":"tunnel","url":"https://cdn.example.com/a.mp4","filename":"a.mp4"}"""), status = HttpStatusCode.OK)
         }
         val resolver = CobaltResolver(HttpClient(mockEngine), "https://cobalt.mock.test", apiKey = "secret-key")
@@ -170,6 +177,25 @@ class CobaltResolverTest {
         resolver.resolve("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
 
         assertEquals("Api-Key secret-key", capturedAuth)
+    }
+
+    @Test
+    fun sizeFetchDoesNotCarryTheCobaltApiKey() = runTest {
+        var capturedHeadAuth: String? = null
+        var sawHeadRequest = false
+        val mockEngine = MockEngine { request ->
+            if (request.method == HttpMethod.Head) {
+                sawHeadRequest = true
+                capturedHeadAuth = request.headers["Authorization"]
+            }
+            respond(content = ByteReadChannel("""{"status":"tunnel","url":"https://cdn.example.com/a.mp4","filename":"a.mp4"}"""), status = HttpStatusCode.OK)
+        }
+        val resolver = CobaltResolver(HttpClient(mockEngine), "https://cobalt.mock.test", apiKey = "secret-key")
+
+        resolver.resolve("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+
+        assertEquals(true, sawHeadRequest)
+        assertNull(capturedHeadAuth)
     }
 
     @Test
@@ -191,7 +217,9 @@ class CobaltResolverTest {
     fun endpointIsReadOnEveryResolve() = runTest {
         val hosts = mutableListOf<String>()
         val mockEngine = MockEngine { request ->
-            hosts += request.url.host
+            // Only track the resolve POST itself; the HEAD size-fetch always targets the media
+            // CDN host, which would otherwise pollute this list.
+            if (request.method == HttpMethod.Post) hosts += request.url.host
             respond(content = ByteReadChannel("""{"status":"tunnel","url":"https://cdn.example.com/a.mp4","filename":"a.mp4"}"""), status = HttpStatusCode.OK)
         }
         var baseUrl = "https://first.mock.test"
@@ -202,5 +230,107 @@ class CobaltResolverTest {
         resolver.resolve("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
 
         assertEquals(listOf("first.mock.test", "second.mock.test"), hosts)
+    }
+
+    @Test
+    fun preferredVideoQualityIsSentInTheRequestBody() = runTest {
+        var capturedBody: String? = null
+        val mockEngine = MockEngine { request ->
+            if (request.method == HttpMethod.Post) capturedBody = request.body.toByteArray().decodeToString()
+            respond(content = ByteReadChannel("""{"status":"tunnel","url":"https://cdn.example.com/a.mp4","filename":"a.mp4"}"""), status = HttpStatusCode.OK)
+        }
+        val resolver = CobaltResolver(HttpClient(mockEngine), "https://cobalt.mock.test", videoQuality = "480")
+
+        resolver.resolve("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+
+        assertEquals(true, capturedBody?.contains("\"videoQuality\":\"480\""))
+    }
+
+    @Test
+    fun variantGetsApproxSizeFromContentLengthHeaderOnTheMediaUrl() = runTest {
+        val mockEngine = MockEngine { request ->
+            if (request.method == HttpMethod.Head) {
+                respond(content = ByteReadChannel(ByteArray(0)), status = HttpStatusCode.OK, headers = headersOf(HttpHeaders.ContentLength, "123456"))
+            } else {
+                respond(content = ByteReadChannel("""{"status":"tunnel","url":"https://cdn.example.com/a.mp4","filename":"a.mp4"}"""), status = HttpStatusCode.OK)
+            }
+        }
+        val resolver = CobaltResolver(HttpClient(mockEngine), "https://cobalt.mock.test")
+
+        val media = resolver.resolve("https://www.youtube.com/watch?v=dQw4w9WgXcQ").getOrThrow()
+
+        assertEquals(123456L, media.variants.single().approxSizeBytes)
+    }
+
+    @Test
+    fun approxSizeStaysNullWhenTheMediaHostRejectsHead() = runTest {
+        val mockEngine = MockEngine { request ->
+            if (request.method == HttpMethod.Head) {
+                throw RuntimeException("405")
+            }
+            respond(content = ByteReadChannel("""{"status":"tunnel","url":"https://cdn.example.com/a.mp4","filename":"a.mp4"}"""), status = HttpStatusCode.OK)
+        }
+        val resolver = CobaltResolver(HttpClient(mockEngine), "https://cobalt.mock.test")
+
+        val result = resolver.resolve("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+
+        assertNull(result.getOrThrow().variants.single().approxSizeBytes)
+    }
+
+    @Test
+    fun testConnectionSucceedsForAPlainServerInfoResponse() = runTest {
+        val resolver = CobaltResolver(
+            HttpClient(engineReturning("""{"cobalt":{"version":"10.2.0"}}""")),
+            "https://cobalt.mock.test",
+        )
+
+        val result = resolver.testConnection("https://cobalt.mock.test", apiKey = null)
+
+        assertEquals("10.2.0", result.getOrThrow())
+    }
+
+    @Test
+    fun testConnectionFlagsATurnstileOnlyInstanceWithoutAnApiKey() = runTest {
+        val resolver = CobaltResolver(
+            HttpClient(engineReturning("""{"cobalt":{"version":"10.2.0","turnstileSitekey":"0x123"}}""")),
+            "https://cobalt.mock.test",
+        )
+
+        val result = resolver.testConnection("https://cobalt.mock.test", apiKey = null)
+
+        assertEquals(AppError.ResolverAuthRequired, result.appErrorOrNull())
+    }
+
+    @Test
+    fun testConnectionAcceptsATurnstileInstanceWhenAnApiKeyIsProvided() = runTest {
+        val resolver = CobaltResolver(
+            HttpClient(engineReturning("""{"cobalt":{"version":"10.2.0","turnstileSitekey":"0x123"}}""")),
+            "https://cobalt.mock.test",
+        )
+
+        val result = resolver.testConnection("https://cobalt.mock.test", apiKey = "secret-key")
+
+        assertEquals("10.2.0", result.getOrThrow())
+    }
+
+    @Test
+    fun testConnectionFailsWhenTheAddressIsNotACobaltApi() = runTest {
+        val resolver = CobaltResolver(
+            HttpClient(engineReturning("""{"status":"ok"}""")),
+            "https://cobalt.mock.test",
+        )
+
+        val result = resolver.testConnection("https://cobalt.mock.test", apiKey = null)
+
+        assertEquals(AppError.NotACobaltServer, result.appErrorOrNull())
+    }
+
+    @Test
+    fun testConnectionFailsWithServerUnreachableOnConnectionFailure() = runTest {
+        val resolver = CobaltResolver(HttpClient(MockEngine { throw RuntimeException("unknown host") }), "https://cobalt.mock.test")
+
+        val result = resolver.testConnection("https://cobalt.mock.test", apiKey = null)
+
+        assertEquals(AppError.ServerUnreachable, result.appErrorOrNull())
     }
 }

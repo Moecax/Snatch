@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import io.github.moecax.snatch.domain.model.ResolvedMedia
 import io.github.moecax.snatch.ui.LegalNotice
 import io.github.moecax.snatch.ui.MediaThumbnail
+import io.github.moecax.snatch.ui.formatApproxSize
 import io.github.moecax.snatch.ui.toDisplayMessage
 import io.github.moecax.snatch.viewmodel.DownloadEvent
 import io.github.moecax.snatch.viewmodel.DownloadUiState
@@ -64,15 +65,18 @@ private fun ReadySheet(state: DownloadUiState.Ready, onEvent: (DownloadEvent) ->
     MediaHeader(state.media)
     if (state.media.variants.size > 1) {
         QualityChips(
-            variants = state.media.variants.map { it.id to it.label },
+            variants = state.media.variants.map { it.id to (it.label + sizeSuffix(it.approxSizeBytes)) },
             selectedId = state.selectedVariantId,
             onSelected = { onEvent(DownloadEvent.VariantSelected(it)) },
         )
     }
+    val selectedSize = state.media.variants.firstOrNull { it.id == state.selectedVariantId }?.approxSizeBytes
     Button(onClick = { onEvent(DownloadEvent.DownloadClicked) }, modifier = Modifier.fillMaxWidth()) {
-        Text("Download")
+        Text(formatApproxSize(selectedSize)?.let { "Download ($it)" } ?: "Download")
     }
 }
+
+private fun sizeSuffix(approxSizeBytes: Long?): String = formatApproxSize(approxSizeBytes)?.let { " · $it" } ?: ""
 
 @Composable
 private fun MediaHeader(media: ResolvedMedia) {

@@ -106,8 +106,9 @@ private fun ReadyContent(state: DownloadUiState.Ready, onEvent: (DownloadEvent) 
             )
         }
         Spacer(Modifier.height(8.dp))
+        val selectedSize = state.media.variants.firstOrNull { it.id == state.selectedVariantId }?.approxSizeBytes
         Button(onClick = { onEvent(DownloadEvent.DownloadClicked) }) {
-            Text("Download")
+            Text(formatApproxSize(selectedSize)?.let { "Download ($it)" } ?: "Download")
         }
     }
 }
@@ -138,7 +139,7 @@ private fun QualityPicker(variants: List<MediaVariant>, selectedVariantId: Strin
                     ),
             ) {
                 RadioButton(selected = variant.id == selectedVariantId, onClick = { onSelected(variant.id) })
-                Text(variant.label)
+                Text(variant.label + (formatApproxSize(variant.approxSizeBytes)?.let { " · $it" } ?: ""))
             }
         }
     }

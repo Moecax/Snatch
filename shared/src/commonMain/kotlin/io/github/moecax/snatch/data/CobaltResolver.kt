@@ -9,6 +9,8 @@ import io.github.moecax.snatch.domain.model.MediaVariant
 import io.github.moecax.snatch.domain.model.ResolvedMedia
 import io.github.moecax.snatch.domain.model.SocialPlatform
 import io.ktor.client.HttpClient
+import io.ktor.client.request.get
+import io.ktor.client.request.head
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -18,12 +20,15 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 
 private val cobaltJson = Json { ignoreUnknownKeys = true }
 
-data class CobaltEndpoint(val baseUrl: String, val apiKey: String?)
+data class CobaltEndpoint(val baseUrl: String, val apiKey: String?, val videoQuality: String = "1080")
 
 /**
  * Resolves media via a Cobalt-style third-party API (https://github.com/imputnet/cobalt).
@@ -39,8 +44,8 @@ class CobaltResolver(
     private val endpoint: () -> CobaltEndpoint?,
 ) : MediaResolver {
 
-    constructor(httpClient: HttpClient, baseUrl: String, apiKey: String? = null) :
-        this(httpClient, { CobaltEndpoint(baseUrl, apiKey) })
+    constructor(httpClient: HttpClient, baseUrl: String, apiKey: String? = null, videoQuality: String = "1080") :
+        this(httpClient, { CobaltEndpoint(baseUrl, apiKey, videoQuality) })
 
     override fun supports(platform: SocialPlatform, url: String): Boolean = platform != SocialPlatform.UNKNOWN
 
@@ -49,14 +54,19 @@ class CobaltResolver(
         if (platform == SocialPlatform.UNKNOWN) {
             return Result.failure(AppErrorException(AppError.UnsupportedPlatform(platform)))
         }
-        val (baseUrl, apiKey) = endpoint()
+        val (baseUrl, apiKey, videoQuality) = endpoint()
             ?: return Result.failure(AppErrorException(AppError.ResolverNotConfigured))
         return try {
             val response = httpClient.post(baseUrl) {
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Accept, "application/json")
                 apiKey?.let { header(HttpHeaders.Authorization, "Api-Key $it") }
-                setBody(cobaltJson.encodeToString(CobaltRequestDto.serializer(), CobaltRequestDto(url = url)))
+                setBody(
+                    cobaltJson.encodeToString(
+                        CobaltRequestDto.serializer(),
+                        CobaltRequestDto(url = url, videoQuality = videoQuality),
+                    ),
+                )
             }
             val bodyText = response.bodyAsText()
             val dto = try {
@@ -64,12 +74,60 @@ class CobaltResolver(
             } catch (e: SerializationException) {
                 return Result.failure(AppErrorException(mapHttpStatus(response.status)))
             }
-            toResult(url, platform, dto)
+            toResult(url, platform, dto).fold(
+                onSuccess = { media -> Result.success(withApproxSizes(media)) },
+                onFailure = { Result.failure(it) },
+            )
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Result.failure(AppErrorException(AppError.ServerUnreachable))
         }
+    }
+
+    /**
+     * Checks that [baseUrl] actually speaks Cobalt's server-info API, independent of whatever is
+     * currently saved in Settings — used by a "Test connection" action before the user commits to
+     * an endpoint. [apiKey] only matters for flagging a Turnstile-only instance as unusable; it's
+     * not sent anywhere, since the server-info endpoint doesn't require auth.
+     */
+    suspend fun testConnection(baseUrl: String, apiKey: String?): Result<String> = try {
+        val response = httpClient.get(baseUrl) {
+            header(HttpHeaders.Accept, "application/json")
+        }
+        val bodyText = response.bodyAsText()
+        val info = try {
+            cobaltJson.decodeFromString(CobaltServerInfoDto.serializer(), bodyText)
+        } catch (e: SerializationException) {
+            return Result.failure(AppErrorException(mapHttpStatus(response.status)))
+        }
+        val cobalt = info.cobalt
+        when {
+            cobalt == null -> Result.failure(AppErrorException(AppError.NotACobaltServer))
+            cobalt.turnstileSitekey != null && apiKey.isNullOrBlank() ->
+                Result.failure(AppErrorException(AppError.ResolverAuthRequired))
+            else -> Result.success(cobalt.version ?: "unknown version")
+        }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Result.failure(AppErrorException(AppError.ServerUnreachable))
+    }
+
+    private suspend fun withApproxSizes(media: ResolvedMedia): ResolvedMedia = coroutineScope {
+        val sized = media.variants.map { variant ->
+            async { variant.copy(approxSizeBytes = fetchApproxSize(variant.url)) }
+        }.awaitAll()
+        media.copy(variants = sized)
+    }
+
+    /** Best-effort only: a CDN that doesn't answer HEAD, or blocks it, just means an unknown size. */
+    private suspend fun fetchApproxSize(url: String): Long? = try {
+        httpClient.head(url).headers[HttpHeaders.ContentLength]?.toLongOrNull()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
     }
 }
 
