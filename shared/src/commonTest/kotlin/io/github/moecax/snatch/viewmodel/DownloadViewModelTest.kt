@@ -68,6 +68,24 @@ class DownloadViewModelTest {
     }
 
     @Test
+    fun pastedShareTextIsResolvedByItsFirstLink() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+
+        val viewModel = DownloadViewModel(ResolverRegistry(listOf(FakeResolver())), FakeMediaDownloader(emptyList()))
+        viewModel.onEvent(
+            DownloadEvent.UrlSubmitted(
+                "https://www.youtube.com/watch?v=dQw4w9WgXcQ This post is shared via TikTok Lite. Download TikTok Lite to enjoy more posts:  https://www.tiktok.com/tiktoklite",
+            ),
+        )
+
+        assertEquals("https://www.youtube.com/watch?v=dQw4w9WgXcQ", (viewModel.state.value as DownloadUiState.Resolving).url)
+        advanceUntilIdle()
+        assertIs<DownloadUiState.Ready>(viewModel.state.value)
+
+        Dispatchers.resetMain()
+    }
+
+    @Test
     fun unsupportedUrlProducesNonRetryableFailedState() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
 

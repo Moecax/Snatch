@@ -33,6 +33,7 @@ fun App(
         val settingsViewModel: SettingsViewModel = viewModel { container.createSettingsViewModel() }
         val state by viewModel.state.collectAsStateWithLifecycle()
         val settings by settingsViewModel.state.collectAsStateWithLifecycle()
+        val testResult by settingsViewModel.testResult.collectAsStateWithLifecycle()
         var showSettings by rememberSaveable { mutableStateOf(false) }
 
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -46,8 +47,13 @@ fun App(
         if (showSettings) {
             SettingsDialog(
                 state = settings,
+                testResult = testResult,
                 onSave = settingsViewModel::save,
-                onDismiss = { showSettings = false },
+                onTestConnection = settingsViewModel::test,
+                onDismiss = {
+                    showSettings = false
+                    settingsViewModel.clearTestResult()
+                },
             )
         }
     }

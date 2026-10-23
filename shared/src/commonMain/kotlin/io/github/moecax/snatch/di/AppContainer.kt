@@ -31,12 +31,12 @@ class AppContainer(
     // shared by the resolver, the link expander, and the downloader rather than one each.
     private val httpClient by lazy { HttpClient() }
     private val linkExpander by lazy { KtorLinkExpander(httpClient) }
-    private val resolverRegistry by lazy {
-        val cobalt = CobaltResolver(httpClient) {
-            resolverSettings.baseUrl?.let { CobaltEndpoint(it, resolverSettings.apiKey) }
+    private val cobaltResolver by lazy {
+        CobaltResolver(httpClient) {
+            resolverSettings.baseUrl?.let { CobaltEndpoint(it, resolverSettings.apiKey, resolverSettings.videoQuality) }
         }
-        ResolverRegistry(listOf(cobalt), linkExpander)
     }
+    private val resolverRegistry by lazy { ResolverRegistry(listOf(cobaltResolver), linkExpander) }
     val downloadManager by lazy {
         DownloadManager(
             downloader = KtorMediaDownloader(httpClient, fileSink),
@@ -47,5 +47,6 @@ class AppContainer(
 
     fun createDownloadViewModel(): DownloadViewModel = DownloadViewModel(resolverRegistry, downloadManager)
 
-    fun createSettingsViewModel(): SettingsViewModel = SettingsViewModel(resolverSettings)
+    fun createSettingsViewModel(): SettingsViewModel =
+        SettingsViewModel(resolverSettings, testConnection = cobaltResolver::testConnection)
 }

@@ -28,3 +28,14 @@ data class CobaltPickerItemDto(
     val url: String,
     val thumb: String? = null,
 )
+
+/** Response shape of a GET to a Cobalt instance's base URL (its server-info endpoint). */
+@Serializable
+data class CobaltServerInfoDto(val cobalt: CobaltInfoDto? = null)
+
+@Serializable
+data class CobaltInfoDto(
+    val version: String? = null,
+    /** Present when the instance requires a browser-solved Turnstile challenge for API calls. */
+    val turnstileSitekey: String? = null,
+)

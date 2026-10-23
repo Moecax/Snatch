@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import io.github.moecax.snatch.domain.DownloadProgress
 import io.github.moecax.snatch.domain.MediaDownloader
 import io.github.moecax.snatch.domain.ResolverRegistry
+import io.github.moecax.snatch.domain.UrlExtractor
 import io.github.moecax.snatch.domain.appErrorOrNull
 import io.github.moecax.snatch.domain.model.AppError
 import io.github.moecax.snatch.domain.model.DownloadRequest
@@ -28,7 +29,9 @@ class DownloadViewModel(
 
     fun onEvent(event: DownloadEvent) {
         when (event) {
-            is DownloadEvent.UrlSubmitted -> resolve(event.url)
+            // Share text pasted from apps carries extra prose and links ("…shared via TikTok Lite:
+            // https://…"), so only the first link is the one the user means.
+            is DownloadEvent.UrlSubmitted -> resolve(UrlExtractor.firstUrl(event.url) ?: event.url.trim())
             is DownloadEvent.VariantSelected -> selectVariant(event.id)
             DownloadEvent.DownloadClicked -> startDownload()
             DownloadEvent.Retry -> lastSubmittedUrl?.let { resolve(it) }

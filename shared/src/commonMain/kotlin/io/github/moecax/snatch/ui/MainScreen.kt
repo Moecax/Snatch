@@ -106,8 +106,9 @@ private fun ReadyContent(state: DownloadUiState.Ready, onEvent: (DownloadEvent) 
             )
         }
         Spacer(Modifier.height(8.dp))
+        val selectedSize = state.media.variants.firstOrNull { it.id == state.selectedVariantId }?.approxSizeBytes
         Button(onClick = { onEvent(DownloadEvent.DownloadClicked) }) {
-            Text("Download")
+            Text(formatApproxSize(selectedSize)?.let { "Download ($it)" } ?: "Download")
         }
     }
 }
@@ -138,7 +139,7 @@ private fun QualityPicker(variants: List<MediaVariant>, selectedVariantId: Strin
                     ),
             ) {
                 RadioButton(selected = variant.id == selectedVariantId, onClick = { onSelected(variant.id) })
-                Text(variant.label)
+                Text(variant.label + (formatApproxSize(variant.approxSizeBytes)?.let { " · $it" } ?: ""))
             }
         }
     }
@@ -177,17 +178,25 @@ private fun SetupHint(onOpenSettings: () -> Unit) {
     }
 }
 
+private val settingsErrors = setOf(AppError.ResolverNotConfigured, AppError.ResolverAuthRequired, AppError.NotACobaltServer)
+
 @Composable
 private fun FailedContent(state: DownloadUiState.Failed, onEvent: (DownloadEvent) -> Unit, onOpenSettings: () -> Unit) {
     Column {
         Text(state.error.toDisplayMessage(), color = MaterialTheme.colorScheme.error)
-        if (state.error == AppError.ResolverNotConfigured) {
+        if (state.error in settingsErrors) {
             Spacer(Modifier.height(8.dp))
             Button(onClick = onOpenSettings) { Text("Open settings") }
         } else if (state.retryable) {
             Spacer(Modifier.height(8.dp))
-            Button(onClick = { onEvent(DownloadEvent.Retry) }) {
-                Text("Retry")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Button(onClick = { onEvent(DownloadEvent.Retry) }) {
+                    Text("Retry")
+                }
+                if (state.error == AppError.ServerUnreachable) {
+                    Spacer(Modifier.width(8.dp))
+                    TextButton(onClick = onOpenSettings) { Text("Open settings") }
+                }
             }
         }
     }
