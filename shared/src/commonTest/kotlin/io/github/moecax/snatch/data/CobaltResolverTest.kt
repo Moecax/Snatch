@@ -110,15 +110,28 @@ class CobaltResolverTest {
     }
 
     @Test
-    fun nonJsonClientErrorIsAResolutionFailureNotANetworkFailure() = runTest {
+    fun nonJsonClientErrorMeansTheAddressIsNotACobaltApi() = runTest {
+        // What an instance's web frontend returns for a POST, e.g. cobalt.canine.tools.
         val resolver = CobaltResolver(
-            HttpClient(engineReturning("<html>Not Found</html>", HttpStatusCode.NotFound)),
+            HttpClient(engineReturning("", HttpStatusCode.MethodNotAllowed)),
             "https://cobalt.mock.test",
         )
 
         val result = resolver.resolve("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
 
-        assertIs<AppError.ResolutionFailed>(result.appErrorOrNull())
+        assertEquals(AppError.NotACobaltServer, result.appErrorOrNull())
+    }
+
+    @Test
+    fun authErrorCodesMapToResolverAuthRequired() = runTest {
+        listOf("error.api.auth.jwt.missing", "error.api.auth.jwt.invalid", "error.api.auth.key.missing").forEach { code ->
+            val json = """{"status":"error","error":{"code":"$code"}}"""
+            val resolver = CobaltResolver(HttpClient(engineReturning(json, HttpStatusCode.BadRequest)), "https://cobalt.mock.test")
+
+            val result = resolver.resolve("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+
+            assertEquals(AppError.ResolverAuthRequired, result.appErrorOrNull(), code)
+        }
     }
 
     @Test

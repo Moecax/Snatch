@@ -139,15 +139,18 @@ private fun toResult(url: String, platform: SocialPlatform, dto: CobaltResponseD
 
 private fun mapHttpStatus(status: HttpStatusCode): AppError = when (status.value) {
     429 -> AppError.RateLimited
+    in 500..599 -> AppError.ResolutionFailed("Resolver instance returned ${status.value}")
     // A non-JSON reply means something answered, so the network is fine — usually the address
-    // points at a web page or proxy rather than a Cobalt API.
-    else -> AppError.ResolutionFailed("Resolver instance returned ${status.value}")
+    // points at an instance's web frontend (which 405s on POST) rather than its API host.
+    else -> AppError.NotACobaltServer
 }
 
 // Cobalt doesn't publish an exhaustive error-code enum (see this plan's Global Constraints) —
 // this buckets by substring against the "error.api.<category>.<detail>" codes observed in its
 // source/issues. Adjust the buckets below if a real instance turns up a code that lands wrong.
 private fun mapCobaltErrorCode(code: String): AppError = when {
+    // Checked first: auth codes like "error.api.auth.jwt.invalid" would otherwise hit "invalid".
+    code.startsWith("error.api.auth.") -> AppError.ResolverAuthRequired
     "rate" in code -> AppError.RateLimited
     "invalid" in code -> AppError.InvalidUrl
     "unavailable" in code || "private" in code || "geo" in code || "region" in code || "age" in code -> AppError.MediaUnavailable

@@ -24,6 +24,19 @@ sealed interface AppError {
         override val retryable: Boolean = true
     }
 
+    /**
+     * The server only serves its own website or keyed callers (Cobalt's `error.api.auth.*`, e.g.
+     * a Cloudflare Turnstile token that only a browser can obtain).
+     */
+    data object ResolverAuthRequired : AppError {
+        override val retryable: Boolean = false
+    }
+
+    /** Something answered at the configured address, but not with Cobalt's JSON API. */
+    data object NotACobaltServer : AppError {
+        override val retryable: Boolean = false
+    }
+
     data class ResolutionFailed(val reason: String?) : AppError {
         override val retryable: Boolean = true
     }

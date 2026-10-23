@@ -7,6 +7,8 @@ fun AppError.toDisplayMessage(): String = when (this) {
     AppError.InvalidUrl -> "That doesn't look like a valid link."
     AppError.NoNetwork -> "The connection dropped. Check your internet and try again."
     AppError.ServerUnreachable -> "Couldn't reach your Cobalt server. Check your connection and the server address in Settings."
+    AppError.ResolverAuthRequired -> "This Cobalt server doesn't accept apps without an API key. Add a key or use another server in Settings."
+    AppError.NotACobaltServer -> "That server address isn't a Cobalt API. Check it in Settings."
     is AppError.ResolutionFailed -> "Couldn't resolve this link."
     AppError.MediaUnavailable -> "This media is unavailable."
     AppError.ResolverNotConfigured -> "No Cobalt server set. Add one in Snatch's Settings."

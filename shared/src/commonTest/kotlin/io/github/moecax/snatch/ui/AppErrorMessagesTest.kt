@@ -13,6 +13,8 @@ class AppErrorMessagesTest {
         AppError.InvalidUrl,
         AppError.NoNetwork,
         AppError.ServerUnreachable,
+        AppError.ResolverAuthRequired,
+        AppError.NotACobaltServer,
         AppError.ResolutionFailed("boom"),
         AppError.MediaUnavailable,
         AppError.ResolverNotConfigured,

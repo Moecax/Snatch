@@ -177,11 +177,13 @@ private fun SetupHint(onOpenSettings: () -> Unit) {
     }
 }
 
+private val settingsErrors = setOf(AppError.ResolverNotConfigured, AppError.ResolverAuthRequired, AppError.NotACobaltServer)
+
 @Composable
 private fun FailedContent(state: DownloadUiState.Failed, onEvent: (DownloadEvent) -> Unit, onOpenSettings: () -> Unit) {
     Column {
         Text(state.error.toDisplayMessage(), color = MaterialTheme.colorScheme.error)
-        if (state.error == AppError.ResolverNotConfigured) {
+        if (state.error in settingsErrors) {
             Spacer(Modifier.height(8.dp))
             Button(onClick = onOpenSettings) { Text("Open settings") }
         } else if (state.retryable) {
