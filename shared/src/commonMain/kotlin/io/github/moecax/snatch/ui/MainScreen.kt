@@ -56,8 +56,6 @@ fun MainScreen(
             is DownloadUiState.Complete -> CompleteContent(state, onEvent)
             is DownloadUiState.Failed -> FailedContent(state, onEvent, onOpenSettings)
         }
-        Spacer(Modifier.weight(1f))
-        LegalNotice()
     }
 }
 

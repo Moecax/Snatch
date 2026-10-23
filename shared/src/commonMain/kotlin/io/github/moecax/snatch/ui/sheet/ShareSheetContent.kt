@@ -31,7 +31,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.dp
 import io.github.moecax.snatch.domain.model.ResolvedMedia
-import io.github.moecax.snatch.ui.LegalNotice
 import io.github.moecax.snatch.ui.MediaThumbnail
 import io.github.moecax.snatch.ui.formatApproxSize
 import io.github.moecax.snatch.ui.toDisplayMessage
@@ -56,7 +55,6 @@ fun ShareSheetContent(
             is DownloadUiState.Complete -> CompleteSheet(state, onDismiss)
             is DownloadUiState.Failed -> FailedSheet(state, onEvent, onDismiss)
         }
-        LegalNotice()
     }
 }
 
