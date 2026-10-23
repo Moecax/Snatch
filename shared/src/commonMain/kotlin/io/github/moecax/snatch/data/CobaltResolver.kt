@@ -23,6 +23,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 
@@ -121,9 +122,15 @@ class CobaltResolver(
         media.copy(variants = sized)
     }
 
-    /** Best-effort only: a CDN that doesn't answer HEAD, or blocks it, just means an unknown size. */
+    /**
+     * Best-effort only: a CDN that doesn't answer HEAD, blocks it, or never responds at all
+     * (the shared [httpClient] has no request timeout) just means an unknown size — it must
+     * never be allowed to stall the resolve this size is a side detail of.
+     */
     private suspend fun fetchApproxSize(url: String): Long? = try {
-        httpClient.head(url).headers[HttpHeaders.ContentLength]?.toLongOrNull()
+        withTimeoutOrNull(5_000) {
+            httpClient.head(url).headers[HttpHeaders.ContentLength]?.toLongOrNull()
+        }
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
